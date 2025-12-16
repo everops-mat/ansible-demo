@@ -2,9 +2,15 @@
 # The Master Orchestrator
 # "I am large, I contain multitudes." - Walt Whitman (and Ansible)
 
-- import_playbook: maintenance.yml
-- import_playbook: datadog.yml
-- import_playbook: datadog-minimal.yml
-- import_playbook: ping_collector.yml
-- import_playbook: ping_dashboard.yml
-- import_playbook: custom_check.yml
+- name: Run System Maintenance
+  import_playbook: maintenance.yml
+- name: Install full Datadog agents
+  import_playbook: datadog.yml
+- name: Install minimal Datadog agents
+  import_playbook: datadog-minimal.yml
+- name: Configure ping collector
+  import_playbook: ping_collector.yml
+- name: Configure ping dashboard and monitors
+  import_playbook: ping_dashboard.yml
+- name: Deploy custom Datadog checks
+  import_playbook: custom_check.yml

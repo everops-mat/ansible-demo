@@ -113,6 +113,6 @@
       ansible.builtin.fetch:
         src: /tmp/system_facts_report.md
         dest: "{{ playbook_dir }}/../reports/{{ inventory_hostname }}_facts.md"
-        flat: yes
+        flat: true
       tags:
         - report

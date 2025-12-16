@@ -50,7 +50,7 @@
   tasks:
     - name: "Update: Refresh apt cache"
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
         cache_valid_time: 3600
 
     - name: "Update: Upgrade security packages only"
@@ -110,7 +110,7 @@
       ansible.builtin.lineinfile:
         path: "{{ update_marker_file }}"
         line: "completed_at={{ ansible_date_time.iso8601 }}"
-        create: yes
+        create: true
 
     - name: "Post-update: Summary"
       ansible.builtin.debug:
