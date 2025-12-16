@@ -70,6 +70,7 @@ ansible-playbook playbooks/site.yml
 # Or run individual playbooks
 ansible-playbook playbooks/maintenance.yml
 ansible-playbook playbooks/datadog.yml
+ansible-playbook playbooks/datadog-infra-basic.yml
 ```
 
 ## Project Structure
@@ -80,16 +81,19 @@ ansible-demo/
 ├── hosts.ini             # Inventory file
 ├── requirements.yml      # Role dependencies
 ├── Vagrantfile           # VM definitions
-├── setup.sh              # VM provisioning script
+├── setup.sh              # VM provisioning (Ubuntu)
+├── setup-fedora.sh       # VM provisioning (Fedora)
 ├── group_vars/
 │   ├── all.yml           # Shared variables
 │   ├── dd_full.yml       # Full Datadog config
-│   └── dd_min.yml        # Minimal Datadog config
+│   ├── dd_min.yml        # Minimal Datadog config
+│   └── dd_infra_basic.yml # Infra basic Datadog config
 ├── playbooks/
 │   ├── site.yml          # Master playbook
 │   ├── maintenance.yml   # System updates
 │   ├── datadog.yml       # Datadog full install
 │   ├── datadog-minimal.yml # Datadog minimal install
+│   ├── datadog-infra-basic.yml # Datadog infra basic (metrics + APM)
 │   ├── ping_collector.yml  # Ping integration
 │   ├── ping_dashboard.yml  # Dashboard and monitors for ping
 │   ├── custom_check.yml  # Custom Datadog check deployment
@@ -113,17 +117,19 @@ ansible-demo/
 
 | Group | Hosts | Description |
 |-------|-------|-------------|
-| `demo_nodes` | node1, node2, node3 | All demo VMs |
+| `demo_nodes` | node1, node2, node3, node4 | All demo VMs |
 | `dd_full` | node1 | Full Datadog agent |
-| `dd_min` | node2, node3 | Minimal Datadog (no APM/logs) |
+| `dd_min` | node2 | Minimal Datadog (no APM/logs) |
+| `dd_infra_basic` | node3, node4 | Infra basic Datadog (metrics + APM only) |
 
 ## VM Network
 
-| Host | IP Address |
-|------|------------|
-| node1 | 192.168.56.11 |
-| node2 | 192.168.56.12 |
-| node3 | 192.168.56.13 |
+| Host | IP Address | OS |
+|------|------------|-----|
+| node1 | 192.168.56.11 | Ubuntu 22.04 |
+| node2 | 192.168.56.12 | Ubuntu 22.04 |
+| node3 | 192.168.56.13 | Ubuntu 22.04 |
+| node4 | 192.168.56.14 | Fedora (latest) |
 
 ## Ping Targets Configuration
 
@@ -177,6 +183,7 @@ ansible-playbook playbooks/site.yml --list-tags
 | `datadog` | All Datadog-related tasks |
 | `datadog-full` | Full Datadog agent install |
 | `datadog-minimal` | Minimal Datadog install |
+| `datadog-infra-basic` | Infra basic Datadog install (metrics + APM) |
 | `integration` | Datadog integrations |
 | `ping` | Ping integration |
 | `dashboard` | Datadog dashboard creation |
@@ -235,6 +242,29 @@ This playbook is **idempotent** - it will update existing resources instead of c
 |---------|-----------------|
 | Host Unreachable | Ping fails for 5 minutes |
 | High Response Time | Response time > 500ms (warn > 200ms) |
+
+## Datadog Installation Modes
+
+The demo supports three Datadog agent configurations:
+
+| Mode | Playbook | Features | Use Case |
+|------|----------|----------|----------|
+| **Full** | `datadog.yml` | All features enabled | Production monitoring |
+| **Minimal** | `datadog-minimal.yml` | No APM, no logs | Low-overhead monitoring |
+| **Infra Basic** | `datadog-infra-basic.yml` | Metrics + APM, no logs | Cost-effective APM |
+
+### Infra Basic Mode
+The `dd_infra_basic` group uses a lightweight configuration ideal for infrastructure monitoring with APM tracing but without log collection:
+
+```bash
+ansible-playbook playbooks/datadog-infra-basic.yml
+```
+
+Configuration (`group_vars/dd_infra_basic.yml`):
+- Logs: disabled
+- APM: enabled
+- Process collection: disabled
+- Tags: `env:vagrant_demo`, `role:web_node`, `mode:infra_basic`
 
 ## Common Commands
 

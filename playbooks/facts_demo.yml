@@ -63,7 +63,7 @@
 
     # Conditional task execution based on facts
     - name: Install htop on systems with enough memory
-      ansible.builtin.apt:
+      ansible.builtin.package:
         name: htop
         state: present
       when: ansible_memtotal_mb >= 512

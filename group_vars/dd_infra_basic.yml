@@ -5,7 +5,7 @@
 datadog_config:
   logs_enabled: false
   apm_config:
-    enabled: true
+    enabled: false
   process_config:
     process_collection:
       enabled: false
