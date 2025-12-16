@@ -10,6 +10,9 @@ instances:
 {% endif %}
     tags:
       - "target:{{ target.name }}"
+      - "device_name:{{ target.name }}"
+      - "provider:ping"
+      - "service:ICMP"
 {% for tag in target.tags.split(',') %}
       - "{{ tag | trim }}"
 {% endfor %}
