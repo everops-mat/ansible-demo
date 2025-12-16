@@ -1,6 +1,23 @@
 ---
 # Datadog full installation config
+# Enables APM, processes, and integrations (logs disabled for demo)
+
 datadog_config:
+  logs_enabled: false
+  apm_config:
+    enabled: true
+  process_config:
+    process_collection:
+      enabled: true
   tags:
     - "env:vagrant_demo"
     - "role:web_node"
+    - "mode:full"
+
+# Enable common integrations
+datadog_checks:
+  process:
+    init_config:
+    instances:
+      - name: ssh
+        search_string: ['sshd']

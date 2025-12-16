@@ -1,5 +1,5 @@
 ---
-# Datadog minimal installation config
+# Datadog infra basic installation config
 # Infrastructure metrics + APM only (logs disabled for demo)
 
 datadog_config:
@@ -12,7 +12,8 @@ datadog_config:
   tags:
     - "env:vagrant_demo"
     - "role:web_node"
-    - "mode:minimal"
+    - "mode:infra_basic"
+    - "infra_basic_host:true"
 
 # No extra integrations - just default system metrics
 datadog_checks: {}

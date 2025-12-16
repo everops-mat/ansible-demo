@@ -1,0 +1,13 @@
+---
+- name: Configure Datadog (Infra Basic Mode)
+  hosts: dd_infra_basic
+  become: true
+  tags:
+    - datadog
+    - datadog-infra-basic
+
+  vars_files:
+    - secrets.yml
+
+  roles:
+    - role: datadog.datadog
