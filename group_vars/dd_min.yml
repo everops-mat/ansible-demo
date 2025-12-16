@@ -1,0 +1,10 @@
+---
+# Datadog minimal installation config
+datadog_config:
+  logs_enabled: false
+  apm_config:
+    enabled: false
+  tags:
+    - "env:vagrant_demo"
+    - "role:web_node"
+    - "mode:minimal"

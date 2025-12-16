@@ -1,0 +1,5 @@
+host,name,collect_response_time,timeout,tags
+192.168.56.12,node2,true,4,external:false,env:vagrant_demo
+192.168.56.13,node3,true,4,external:false,env:vagrant_demo
+8.8.8.8,google-dns,true,10,external:true,service:dns
+1.1.1.1,cloudflare-dns,true,10,external:true,service:dns

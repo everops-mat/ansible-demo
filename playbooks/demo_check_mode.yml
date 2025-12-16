@@ -1,0 +1,72 @@
+---
+# Demonstration Playbook: Check Mode (Dry Run)
+#
+# Run with: ansible-playbook playbooks/demo_check_mode.yml --check --diff
+#
+# This shows what WOULD change without actually making changes.
+# Great for: code review, change validation, audit trails
+
+- name: "Demo: Check Mode and Diff"
+  hosts: demo_nodes
+  become: true
+  gather_facts: true
+  tags:
+    - demo
+    - check-mode
+
+  vars:
+    demo_file_content: |
+      # Demo Configuration File
+      # Managed by Ansible - Do not edit manually
+      hostname={{ ansible_hostname }}
+      environment=demo
+      last_updated={{ ansible_date_time.iso8601 }}
+
+  tasks:
+    - name: "Demo: Create a configuration file"
+      ansible.builtin.copy:
+        content: "{{ demo_file_content }}"
+        dest: /tmp/ansible_demo_config.txt
+        mode: '0644'
+      # In check mode, this will show the diff of what would be written
+
+    - name: "Demo: Ensure a package is installed"
+      ansible.builtin.apt:
+        name: curl
+        state: present
+      # In check mode, shows if package would be installed
+
+    - name: "Demo: Modify a line in a file"
+      ansible.builtin.lineinfile:
+        path: /tmp/ansible_demo_config.txt
+        regexp: '^environment='
+        line: 'environment=production'
+      # In check mode with --diff, shows the exact line change
+
+    - name: "Demo: Template a file"
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/demo_check.yaml.j2"
+        dest: /tmp/ansible_demo_template.yaml
+        mode: '0644'
+      vars:
+        demo_check_prefix: "check_mode_demo"
+      # Shows template rendering diff
+
+    - name: "Demo: Ensure directory structure"
+      ansible.builtin.file:
+        path: /tmp/ansible_demo_dir/subdir
+        state: directory
+        mode: '0755'
+      # Shows directory creation
+
+    # This block demonstrates check_mode override
+    - name: "Always run this task (even in check mode)"
+      ansible.builtin.command:
+        cmd: uptime
+      register: uptime_result
+      check_mode: false  # Force run even in check mode
+      changed_when: false
+
+    - name: "Display uptime (proves task ran)"
+      ansible.builtin.debug:
+        msg: "System uptime: {{ uptime_result.stdout }}"

@@ -1,0 +1,78 @@
+---
+- name: Deploy Custom Datadog Check
+  hosts: dd_full
+  become: true
+  tags:
+    - datadog
+    - custom-check
+
+  vars:
+    demo_check_prefix: "ansible_demo"
+    demo_check_interval: 30
+    demo_check_extra_tags:
+      - "deployed_by:ansible"
+      - "check_type:custom"
+
+  tasks:
+    - name: Ensure Datadog checks.d directory exists
+      ansible.builtin.file:
+        path: /etc/datadog-agent/checks.d
+        state: directory
+        owner: dd-agent
+        group: dd-agent
+        mode: '0755'
+      tags:
+        - install
+
+    - name: Deploy custom check Python script
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/checks.d/demo_check.py"
+        dest: /etc/datadog-agent/checks.d/demo_check.py
+        owner: dd-agent
+        group: dd-agent
+        mode: '0644'
+      notify: Restart Datadog Agent
+      tags:
+        - install
+
+    - name: Ensure Datadog conf.d directory for custom check exists
+      ansible.builtin.file:
+        path: /etc/datadog-agent/conf.d/demo_check.d
+        state: directory
+        owner: dd-agent
+        group: dd-agent
+        mode: '0755'
+      tags:
+        - configure
+
+    - name: Deploy custom check configuration
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/demo_check.yaml.j2"
+        dest: /etc/datadog-agent/conf.d/demo_check.d/conf.yaml
+        owner: dd-agent
+        group: dd-agent
+        mode: '0640'
+      notify: Restart Datadog Agent
+      tags:
+        - configure
+
+    - name: Validate custom check syntax
+      ansible.builtin.command:
+        cmd: sudo -u dd-agent datadog-agent check demo_check --check-rate
+      register: check_validation
+      changed_when: false
+      failed_when: false
+      tags:
+        - validate
+
+    - name: Display check validation result
+      ansible.builtin.debug:
+        msg: "{{ check_validation.stdout_lines | default(['Check validation skipped']) }}"
+      tags:
+        - validate
+
+  handlers:
+    - name: Restart Datadog Agent
+      ansible.builtin.service:
+        name: datadog-agent
+        state: restarted

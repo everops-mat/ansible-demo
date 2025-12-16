@@ -1,0 +1,261 @@
+---
+- name: Create Datadog Dashboard and Monitor for Ping Collector
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - datadog
+    - dashboard
+    - monitor
+    - ping
+
+  vars_files:
+    - secrets.yml
+
+  vars:
+    datadog_site: "datadoghq.com"
+    datadog_api_url: "https://api.{{ datadog_site }}"
+    ping_targets_file: "{{ playbook_dir }}/../files/ping_targets.csv"
+    dashboard_title: "Ping Collector - Network Reachability"
+
+  tasks:
+    - name: Read ping targets from CSV
+      community.general.read_csv:
+        path: "{{ ping_targets_file }}"
+      register: ping_csv
+      tags:
+        - dashboard
+        - monitor
+
+    - name: Display loaded ping targets
+      ansible.builtin.debug:
+        msg: "Configuring dashboard and monitors for {{ ping_csv.list | length }} ping targets: {{ ping_csv.list | map(attribute='name') | join(', ') }}"
+      tags:
+        - dashboard
+        - monitor
+
+    # ==================== MONITORS ====================
+    - name: Create Ping Failure Monitor
+      community.general.datadog_monitor:
+        api_key: "{{ datadog_api_key }}"
+        app_key: "{{ datadog_app_key }}"
+        api_host: "{{ datadog_api_url }}"
+        state: present
+        name: "[Ping Collector] Host Unreachable"
+        type: "metric alert"
+        query: "avg(last_5m):avg:network.ping.can_connect{*} by {host} < 1"
+        notification_message: >-
+          {% raw %}{{#is_alert}}
+          Host {{host.name}} is not responding to ping requests.
+          Check network connectivity and firewall rules.
+          {{/is_alert}}
+          {{#is_recovery}}
+          Host {{host.name}} is now reachable again.
+          {{/is_recovery}}
+          @all{% endraw %}
+        tags:
+          - "env:vagrant_demo"
+          - "managed_by:ansible"
+          - "integration:ping"
+        thresholds:
+          critical: 1
+        notify_no_data: true
+        no_data_timeframe: 10
+        include_tags: true
+      register: failure_monitor_result
+      tags:
+        - monitor
+
+    - name: Create High Response Time Monitor
+      community.general.datadog_monitor:
+        api_key: "{{ datadog_api_key }}"
+        app_key: "{{ datadog_app_key }}"
+        api_host: "{{ datadog_api_url }}"
+        state: present
+        name: "[Ping Collector] High Response Time"
+        type: "metric alert"
+        query: "avg(last_5m):avg:network.ping.response_time{*} by {host} > 500"
+        notification_message: >-
+          {% raw %}{{#is_alert}}
+          Host {{host.name}} response time is above 500ms.
+          Current value: {{value}} ms
+          This may indicate network congestion or latency issues.
+          {{/is_alert}}
+          {{#is_warning}}
+          Host {{host.name}} response time is elevated ({{value}} ms).
+          {{/is_warning}}
+          {{#is_recovery}}
+          Host {{host.name}} response time is back to normal.
+          {{/is_recovery}}
+          @all{% endraw %}
+        tags:
+          - "env:vagrant_demo"
+          - "managed_by:ansible"
+          - "integration:ping"
+        thresholds:
+          critical: 500
+          warning: 200
+        include_tags: true
+      register: latency_monitor_result
+      tags:
+        - monitor
+
+    - name: Display Monitor Results
+      ansible.builtin.debug:
+        msg:
+          - "Monitors configured successfully"
+      tags:
+        - monitor
+
+    # ==================== DASHBOARD ====================
+    - name: Search for existing dashboard
+      ansible.builtin.uri:
+        url: "{{ datadog_api_url }}/api/v1/dashboard"
+        method: GET
+        headers:
+          DD-API-KEY: "{{ datadog_api_key }}"
+          DD-APPLICATION-KEY: "{{ datadog_app_key }}"
+        status_code: [200]
+      register: dashboard_list
+      tags:
+        - dashboard
+
+    - name: Find dashboard ID if exists
+      ansible.builtin.set_fact:
+        existing_dashboard_id: "{{ (dashboard_list.json.dashboards | selectattr('title', 'equalto', dashboard_title) | list | first).id | default('') }}"
+      tags:
+        - dashboard
+
+    - name: Display dashboard search result
+      ansible.builtin.debug:
+        msg: "{{ 'Found existing dashboard: ' ~ existing_dashboard_id if existing_dashboard_id | length > 0 else 'No existing dashboard found, will create new' }}"
+      tags:
+        - dashboard
+
+    - name: Define dashboard payload
+      ansible.builtin.set_fact:
+        dashboard_payload:
+          title: "{{ dashboard_title }}"
+          description: "Dashboard for monitoring ping targets managed by Ansible"
+          layout_type: "ordered"
+          widgets:
+            - definition:
+                type: "note"
+                content: "# Ping Collector\nMonitoring {{ ping_csv.list | length }} targets: {{ ping_csv.list | map(attribute='name') | join(', ') }}"
+                background_color: "blue"
+                font_size: "14"
+                text_align: "left"
+                vertical_align: "top"
+                show_tick: false
+                tick_pos: "50%"
+                tick_edge: "left"
+            - definition:
+                title: "Ping Success Rate"
+                type: "query_value"
+                requests:
+                  - queries:
+                      - data_source: "metrics"
+                        name: "query1"
+                        query: "avg:network.ping.can_connect{*}"
+                        aggregator: "avg"
+                    formulas:
+                      - formula: "query1 * 100"
+                    response_format: "scalar"
+                autoscale: true
+                precision: 1
+                custom_unit: "%"
+            - definition:
+                title: "Ping Response Time (ms)"
+                type: "timeseries"
+                requests:
+                  - queries:
+                      - data_source: "metrics"
+                        name: "query1"
+                        query: "avg:network.ping.response_time{*} by {host}"
+                    response_format: "timeseries"
+                    display_type: "line"
+                    style:
+                      palette: "dog_classic"
+                      line_type: "solid"
+                      line_width: "normal"
+                yaxis:
+                  include_zero: true
+                  label: "ms"
+            - definition:
+                title: "Packet Loss by Target"
+                type: "timeseries"
+                requests:
+                  - queries:
+                      - data_source: "metrics"
+                        name: "query1"
+                        query: "avg:network.ping.packet_loss{*} by {host}"
+                    response_format: "timeseries"
+                    display_type: "bars"
+                    style:
+                      palette: "warm"
+                yaxis:
+                  include_zero: true
+                  max: "100"
+            - definition:
+                title: "Ping Target Status"
+                type: "query_table"
+                requests:
+                  - queries:
+                      - data_source: "metrics"
+                        name: "query1"
+                        query: "avg:network.ping.can_connect{*} by {host}"
+                        aggregator: "last"
+                      - data_source: "metrics"
+                        name: "query2"
+                        query: "avg:network.ping.response_time{*} by {host}"
+                        aggregator: "last"
+                    formulas:
+                      - formula: "query1"
+                        alias: "Status"
+                        limit:
+                          count: 50
+                          order: "desc"
+                      - formula: "query2"
+                        alias: "Response Time (ms)"
+                    response_format: "scalar"
+                has_search_bar: "auto"
+      tags:
+        - dashboard
+
+    - name: Create new dashboard
+      ansible.builtin.uri:
+        url: "{{ datadog_api_url }}/api/v1/dashboard"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+          DD-API-KEY: "{{ datadog_api_key }}"
+          DD-APPLICATION-KEY: "{{ datadog_app_key }}"
+        body_format: json
+        body: "{{ dashboard_payload }}"
+        status_code: [200, 201]
+      register: dashboard_create_result
+      when: existing_dashboard_id | length == 0
+      tags:
+        - dashboard
+
+    - name: Update existing dashboard
+      ansible.builtin.uri:
+        url: "{{ datadog_api_url }}/api/v1/dashboard/{{ existing_dashboard_id }}"
+        method: PUT
+        headers:
+          Content-Type: "application/json"
+          DD-API-KEY: "{{ datadog_api_key }}"
+          DD-APPLICATION-KEY: "{{ datadog_app_key }}"
+        body_format: json
+        body: "{{ dashboard_payload }}"
+        status_code: [200]
+      register: dashboard_update_result
+      when: existing_dashboard_id | length > 0
+      tags:
+        - dashboard
+
+    - name: Display Dashboard URL
+      ansible.builtin.debug:
+        msg: "Dashboard: https://app.{{ datadog_site }}{{ (dashboard_create_result.json.url | default(dashboard_update_result.json.url)) | default('/dashboard/list') }}"
+      tags:
+        - dashboard

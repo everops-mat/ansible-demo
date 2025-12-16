@@ -1,10 +1,16 @@
 init_config:
 
 instances:
-{% for target in groups['dd_min'] %}
-  - host: {{ hostvars[target]['ansible_host'] }}
-    name: {{ target }}
-    collect_response_time: true
+{% for target in ping_targets %}
+  - host: {{ target.host }}
+    name: {{ target.name }}
+    collect_response_time: {{ target.collect_response_time | default('true') }}
+{% if target.timeout is defined and target.timeout %}
+    timeout: {{ target.timeout }}
+{% endif %}
     tags:
-      - target:{{ target }}
+      - "target:{{ target.name }}"
+{% for tag in target.tags.split(',') %}
+      - "{{ tag | trim }}"
+{% endfor %}
 {% endfor %}

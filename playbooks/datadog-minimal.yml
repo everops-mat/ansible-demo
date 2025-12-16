@@ -2,29 +2,12 @@
 - name: Configure Datadog (Minimal Mode)
   hosts: dd_min
   become: true
-  
+  tags:
+    - datadog
+    - datadog-minimal
+
   vars_files:
     - secrets.yml
-
-  vars:
-    # We still need the key to render the config file valid
-    datadog_api_key: "{{ datadog_api_key }}"
-    datadog_site: "datadoghq.com"
-
-    # The Configuration Block
-    datadog_config:
-      # Explicitly disable Logs
-      logs_enabled: false
-      
-      # Explicitly disable APM (Tracing)
-      apm_config:
-        enabled: false
-      
-      # We keep the tags so we know who is ignoring us
-      tags:
-        - "env:vagrant_demo"
-        - "role:web_node"
-        - "mode:minimal"
 
   roles:
     - role: datadog.datadog

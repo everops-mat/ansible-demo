@@ -1,0 +1,6 @@
+---
+# Datadog full installation config
+datadog_config:
+  tags:
+    - "env:vagrant_demo"
+    - "role:web_node"

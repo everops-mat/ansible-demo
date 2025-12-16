@@ -1,0 +1,11 @@
+---
+# Ansible role and collection dependencies
+# Install with: ansible-galaxy install -r requirements.yml
+
+roles:
+  - name: datadog.datadog
+    version: "4.23.0"
+
+collections:
+  - name: datadog.dd
+    version: "5.7.0"

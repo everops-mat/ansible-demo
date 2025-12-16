@@ -3,3 +3,6 @@
 .DS_Store
 .vagrant/
 ansible_key*
+.venv/
+reports/
+playbooks/secrets.*

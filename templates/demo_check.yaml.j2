@@ -1,0 +1,13 @@
+init_config:
+
+instances:
+  - metric_prefix: "{{ demo_check_prefix | default('demo') }}"
+    min_collection_interval: {{ demo_check_interval | default(30) }}
+    tags:
+      - "env:{{ ansible_env_name | default('vagrant_demo') }}"
+      - "host:{{ inventory_hostname }}"
+{% if demo_check_extra_tags is defined %}
+{% for tag in demo_check_extra_tags %}
+      - "{{ tag }}"
+{% endfor %}
+{% endif %}

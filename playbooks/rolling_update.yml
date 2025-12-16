@@ -1,0 +1,129 @@
+---
+# Demonstration Playbook: Rolling Updates
+#
+# Demonstrates:
+# - Serial execution (one host at a time)
+# - Health checks between updates
+# - Failure handling with max_fail_percentage
+# - Pre/post update tasks
+
+- name: "Demo: Rolling Update with Health Checks"
+  hosts: demo_nodes
+  become: true
+  gather_facts: true
+  serial: 1  # Update one host at a time
+  max_fail_percentage: 0  # Stop if any host fails
+  tags:
+    - demo
+    - rolling-update
+
+  vars:
+    update_marker_file: /tmp/last_rolling_update
+    health_check_retries: 3
+    health_check_delay: 5
+
+  pre_tasks:
+    - name: "Pre-flight: Record update start time"
+      ansible.builtin.set_fact:
+        update_start_time: "{{ ansible_date_time.iso8601 }}"
+
+    - name: "Pre-flight: Check disk space"
+      ansible.builtin.shell: |
+        df -h / | tail -1 | awk '{print $5}' | sed 's/%//'
+      register: disk_usage
+      changed_when: false
+
+    - name: "Pre-flight: Fail if disk space critical"
+      ansible.builtin.fail:
+        msg: "Disk usage is {{ disk_usage.stdout }}% - too high for update!"
+      when: disk_usage.stdout | int > 90
+
+    - name: "Pre-flight: Display update banner"
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Starting rolling update on {{ inventory_hostname }}
+          Time: {{ update_start_time }}
+          Disk Usage: {{ disk_usage.stdout }}%
+          ========================================
+
+  tasks:
+    - name: "Update: Refresh apt cache"
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: "Update: Upgrade security packages only"
+      ansible.builtin.apt:
+        upgrade: safe
+      register: upgrade_result
+
+    - name: "Update: Display upgrade summary"
+      ansible.builtin.debug:
+        msg: "Packages upgraded: {{ upgrade_result.stdout_lines | default(['None']) | length }} changes"
+      when: upgrade_result.stdout_lines is defined
+
+    # Simulate application deployment
+    - name: "Deploy: Update application marker"
+      ansible.builtin.copy:
+        content: |
+          deployment_time={{ ansible_date_time.iso8601 }}
+          deployed_by=ansible_rolling_update
+          host={{ inventory_hostname }}
+          ansible_version={{ ansible_version.full }}
+        dest: "{{ update_marker_file }}"
+        mode: '0644'
+
+    # Health check with retries
+    - name: "Health Check: Verify system is responsive"
+      ansible.builtin.command:
+        cmd: systemctl is-system-running
+      register: system_health
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_delay }}"
+      until: system_health.rc == 0 or 'running' in system_health.stdout or 'degraded' in system_health.stdout
+      changed_when: false
+      failed_when: false
+
+    - name: "Health Check: Verify SSH is running"
+      ansible.builtin.service_facts:
+
+    - name: "Health Check: Assert SSH service is active"
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['ssh.service'].state == 'running' or
+            ansible_facts.services['sshd.service'].state | default('') == 'running'
+        fail_msg: "SSH service is not running!"
+        success_msg: "SSH service is healthy"
+
+    # Conditional: Check if Datadog agent exists and is running
+    - name: "Health Check: Verify Datadog agent (if installed)"
+      ansible.builtin.service:
+        name: datadog-agent
+        state: started
+      failed_when: false
+      register: dd_status
+      when: "'datadog-agent.service' in ansible_facts.services"
+
+  post_tasks:
+    - name: "Post-update: Record completion"
+      ansible.builtin.lineinfile:
+        path: "{{ update_marker_file }}"
+        line: "completed_at={{ ansible_date_time.iso8601 }}"
+        create: yes
+
+    - name: "Post-update: Summary"
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Completed rolling update on {{ inventory_hostname }}
+          Started: {{ update_start_time }}
+          Finished: {{ ansible_date_time.iso8601 }}
+          System Health: {{ system_health.stdout | default('OK') }}
+          ========================================
+
+    - name: "Post-update: Pause before next host"
+      ansible.builtin.pause:
+        seconds: 5
+        prompt: "Waiting 5 seconds before updating next host..."
+      when: inventory_hostname != ansible_play_hosts[-1]
