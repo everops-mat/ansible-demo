@@ -30,7 +30,7 @@ Vagrant.configure("2") do |config|
       node.vm.provision "file", source: "./ansible_key.pub", destination: "/tmp/ansible_key.pub"
 
       # Run setup
-      node.vm.provision "shell", path: "setup.sh"
+      node.vm.provision "shell", path: "setup-ubuntu.sh"
     end
   end
 

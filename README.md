@@ -81,7 +81,7 @@ ansible-demo/
 ├── hosts.ini             # Inventory file
 ├── requirements.yml      # Role dependencies
 ├── Vagrantfile           # VM definitions
-├── setup.sh              # VM provisioning (Ubuntu)
+├── setup-ubuntu.sh       # VM provisioning (Ubuntu)
 ├── setup-fedora.sh       # VM provisioning (Fedora)
 ├── group_vars/
 │   ├── all.yml           # Shared variables

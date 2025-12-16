@@ -173,7 +173,7 @@ vagrant up --provider=vmware_desktop
 1. Downloads Ubuntu 22.04 base image (first run only)
 2. Creates 3 virtual machines
 3. Configures networking (static IPs)
-4. Runs `setup.sh` provisioner to create ansible user and deploy SSH key
+4. Runs `setup-ubuntu.sh` provisioner to create ansible user and deploy SSH key
 
 **Expected duration:** 5-10 minutes on first run, ~2 minutes on subsequent runs (linked clones).
 
