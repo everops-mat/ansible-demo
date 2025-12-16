@@ -1,0 +1,20 @@
+---
+- name: Install Datadog Agent
+  hosts: dd_full
+  become: true
+
+  # Tell Ansible where the bodies are buried
+  vars_files:
+    - secrets.yml
+
+  vars:
+    datadog_site: "datadoghq.com"
+    datadog_config:
+      tags:
+        - "env:vagrant_demo"
+        - "role:web_node"
+      # We just reference the variable name defined inside secrets.yml
+      api_key: "{{ datadog_api_key }}"
+
+  roles:
+    - role: datadog.datadog

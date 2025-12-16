@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+{% for target in groups['dd_min'] %}
+  - host: {{ hostvars[target]['ansible_host'] }}
+    name: {{ target }}
+    collect_response_time: true
+    tags:
+      - target:{{ target }}
+{% endfor %}

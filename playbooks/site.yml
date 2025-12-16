@@ -1,0 +1,7 @@
+---
+# The Master Orchestrator
+# "I am large, I contain multitudes." - Walt Whitman (and Ansible)
+
+- import_playbook: datadog.yml
+- import_playbook: datadog-minimal.yml
+- import_playbook: ping_collector.yml

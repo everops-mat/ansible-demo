@@ -1,0 +1,49 @@
+---
+- name: Add Datadog Ping Integration
+  hosts: node1
+  become: true
+
+  tasks:
+    # 1. New Task: Ensure the Linux 'ping' command actually exists
+    - name: Ensure system ping utility is installed
+      ansible.builtin.apt:
+        name: iputils-ping
+        state: present
+        update_cache: true
+
+    # 2. Install the Datadog Integration (Python Code)
+    - name: Install datadog-ping integration
+      ansible.builtin.command:
+        # We manually switch user inside the command string
+        cmd: "sudo -u dd-agent datadog-agent integration install -t datadog-ping==1.0.2"
+      # Remove 'become_user: dd-agent'. We stay as root (become: true) to run the sudo command.
+      become: true 
+      register: integration_install
+      changed_when: "'installed' in integration_install.stdout"
+      # Fix the failure condition to look for "already installed" properly
+      failed_when: 
+        - integration_install.rc != 0
+        - "'already installed' not in integration_install.stdout"
+
+    - name: Ensure Datadog ping configuration directory exists
+      ansible.builtin.file:
+        path: /etc/datadog-agent/conf.d/ping.d
+        state: directory
+        owner: dd-agent
+        group: dd-agent
+        mode: '0755'
+
+    - name: Configure Ping Check for Neighbors
+      ansible.builtin.template:
+        src: ../templates/ping.yaml.j2
+        dest: /etc/datadog-agent/conf.d/ping.d/conf.yaml
+        owner: dd-agent
+        group: dd-agent
+        mode: '0640'
+      notify: Restart Datadog Agent
+
+  handlers:
+    - name: Restart Datadog Agent
+      ansible.builtin.service:
+        name: datadog-agent
+        state: restarted
