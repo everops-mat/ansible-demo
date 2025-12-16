@@ -1,0 +1,7 @@
+---
+# Host-specific variables for node4 (Fedora)
+extra_packages:
+  - ed
+  - joe
+  - curl
+  - perl

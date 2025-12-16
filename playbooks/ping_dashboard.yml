@@ -52,7 +52,7 @@
           {{#is_recovery}}
           Host {{host.name}} is now reachable again.
           {{/is_recovery}}
-          @all{% endraw %}
+          {% endraw %}
         tags:
           - "env:vagrant_demo"
           - "managed_by:ansible"
@@ -87,7 +87,7 @@
           {{#is_recovery}}
           Host {{host.name}} response time is back to normal.
           {{/is_recovery}}
-          @all{% endraw %}
+          {% endraw %}
         tags:
           - "env:vagrant_demo"
           - "managed_by:ansible"

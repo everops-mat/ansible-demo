@@ -8,38 +8,73 @@
     - system
 
   tasks:
+    # Debian/Ubuntu tasks
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
       tags:
         - update
 
-    - name: Upgrade all packages to the latest version
+    - name: Upgrade all packages (Debian)
       ansible.builtin.apt:
         name: "*"
         state: latest
       register: apt_output
+      when: ansible_os_family == 'Debian'
       tags:
         - update
         - upgrade
 
-    - name: Remove useless packages from the cache
+    - name: Remove useless packages from the cache (Debian)
       ansible.builtin.apt:
         autoclean: true
+      when: ansible_os_family == 'Debian'
       tags:
         - cleanup
 
-    - name: Remove dependencies that are no longer needed
+    - name: Remove dependencies that are no longer needed (Debian)
       ansible.builtin.apt:
         autoremove: true
+      when: ansible_os_family == 'Debian'
       tags:
         - cleanup
 
-    - name: Check if a reboot is required
+    # Red Hat/Fedora tasks
+    - name: Upgrade all packages (RedHat)
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+      register: dnf_output
+      when: ansible_os_family == 'RedHat'
+      tags:
+        - update
+        - upgrade
+
+    - name: Remove dependencies that are no longer needed (RedHat)
+      ansible.builtin.dnf:
+        autoremove: true
+      when: ansible_os_family == 'RedHat'
+      tags:
+        - cleanup
+
+    # Reboot check (Debian)
+    - name: Check if a reboot is required (Debian)
       ansible.builtin.stat:
         path: /var/run/reboot-required
       register: reboot_required_file
+      when: ansible_os_family == 'Debian'
+      tags:
+        - reboot
+
+    # Reboot check (RedHat)
+    - name: Check if a reboot is required (RedHat)
+      ansible.builtin.command: needs-restarting -r
+      register: reboot_required_redhat
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family == 'RedHat'
       tags:
         - reboot
 
@@ -51,6 +86,8 @@
         pre_reboot_delay: 0
         post_reboot_delay: 30
         test_command: whoami
-      when: reboot_required_file.stat.exists
+      when: >
+        (ansible_os_family == 'Debian' and reboot_required_file.stat.exists | default(false)) or
+        (ansible_os_family == 'RedHat' and reboot_required_redhat.rc | default(0) == 1)
       tags:
         - reboot
