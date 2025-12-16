@@ -48,15 +48,32 @@
           ========================================
 
   tasks:
+    # Debian/Ubuntu package updates
     - name: "Update: Refresh apt cache"
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
 
-    - name: "Update: Upgrade security packages only"
+    - name: "Update: Upgrade security packages only (apt)"
       ansible.builtin.apt:
         upgrade: safe
       register: upgrade_result
+      when: ansible_os_family == "Debian"
+
+    # RedHat/Fedora package updates
+    - name: "Update: Refresh dnf cache"
+      ansible.builtin.dnf:
+        update_cache: true
+      when: ansible_os_family == "RedHat"
+
+    - name: "Update: Upgrade packages (dnf)"
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        security: true
+      register: upgrade_result
+      when: ansible_os_family == "RedHat"
 
     - name: "Update: Display upgrade summary"
       ansible.builtin.debug:
@@ -91,8 +108,8 @@
     - name: "Health Check: Assert SSH service is active"
       ansible.builtin.assert:
         that:
-          - ansible_facts.services['ssh.service'].state == 'running' or
-            ansible_facts.services['sshd.service'].state | default('') == 'running'
+          - ansible_facts.services.get('ssh.service', {}).get('state') == 'running' or
+            ansible_facts.services.get('sshd.service', {}).get('state') == 'running'
         fail_msg: "SSH service is not running!"
         success_msg: "SSH service is healthy"
 
